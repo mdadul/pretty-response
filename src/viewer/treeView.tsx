@@ -1,5 +1,5 @@
 import type { FC, MouseEvent } from "react";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 interface TreeNodeProps {
   path: (string | number)[];
@@ -9,6 +9,7 @@ interface TreeNodeProps {
   onSelectPath?: (path: (string | number)[]) => void;
   searchQuery?: string;
   matchPaths?: Set<string>;
+  safeMode?: boolean;
 }
 
 const INDENT_PX = 14;
@@ -40,7 +41,8 @@ function safeValueText(value: unknown): string {
 
 const pathKey = (p: (string | number)[]) => p.join(".");
 
-const TreeNode: FC<TreeNodeProps> = ({ path, name, value, depth, onSelectPath, searchQuery, matchPaths }) => {
+const TreeNode: FC<TreeNodeProps> = ({ path, name, value, depth, onSelectPath, searchQuery, matchPaths, safeMode }) => {
+  const [forceExpandHugeBranch, setForceExpandHugeBranch] = useState(false);
   const isObject = value !== null && typeof value === "object" && !Array.isArray(value);
   const isArray = Array.isArray(value);
   const label = name !== null ? String(name) : "";
@@ -82,11 +84,23 @@ const TreeNode: FC<TreeNodeProps> = ({ path, name, value, depth, onSelectPath, s
     (matchPaths.has(key) || [...matchPaths].some((m) => m.startsWith(key + ".")));
 
   if (isObject || isArray) {
-    const entries = isArray ? (value as unknown[]) : Object.entries(value as Record<string, unknown>);
+    const SAFE_MODE_MAX_CHILDREN = 500;
+    const SAFE_MODE_MAX_AUTO_DEPTH = 6;
+
+    const collection = isArray ? (value as unknown[]) : (value as Record<string, unknown>);
+    const collectionSize = isArray
+      ? (collection as unknown[]).length
+      : Object.keys(collection as Record<string, unknown>).length;
+
+    const isHugeBranch =
+      !!safeMode && (collectionSize > SAFE_MODE_MAX_CHILDREN || depth >= SAFE_MODE_MAX_AUTO_DEPTH);
+    const showChildren = !isHugeBranch || forceExpandHugeBranch;
+
+    const entries = isArray ? (collection as unknown[]) : Object.entries(collection as Record<string, unknown>);
     return (
       <details
         className="group"
-        open={depth < 2 || !!hasMatchInSubtree}
+        open={showChildren && (depth < 2 || !!hasMatchInSubtree)}
         aria-label={name ?? "root node"}
         data-path={pathKey(path)}
       >
@@ -94,34 +108,59 @@ const TreeNode: FC<TreeNodeProps> = ({ path, name, value, depth, onSelectPath, s
           {name !== null && <span className="font-mono pj-key">{name}</span>}
           <span className="text-slate-400">{isArray ? " [ ]" : " { }"}</span>
           <span className="ml-1 text-slate-500">({entries.length})</span>
+          {safeMode && isHugeBranch && !forceExpandHugeBranch && (
+            <span className="ml-2 rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-200">
+              Safe mode: large subtree hidden
+            </span>
+          )}
         </summary>
-        <div>
-          {isArray
-            ? (entries as unknown[]).map((child, idx) => (
-                <TreeNode
-                  key={`${path.join(".")}[${idx}]`}
-                  path={[...path, idx]}
-                  name={String(idx)}
-                  value={child}
-                  depth={depth + 1}
-                onSelectPath={onSelectPath}
-                searchQuery={searchQuery}
-                matchPaths={matchPaths}
-                />
-              ))
-            : (entries as [string, unknown][]).map(([k, child]) => (
-                <TreeNode
-                  key={`${path.join(".")}.${k}`}
-                  path={[...path, k]}
-                  name={k}
-                  value={child}
-                  depth={depth + 1}
-                  onSelectPath={onSelectPath}
-                  searchQuery={searchQuery}
-                  matchPaths={matchPaths}
-                />
-              ))}
-        </div>
+        {showChildren && (
+          <div>
+            {isArray
+              ? (entries as unknown[]).map((child, idx) => (
+                  <TreeNode
+                    key={`${path.join(".")}[${idx}]`}
+                    path={[...path, idx]}
+                    name={String(idx)}
+                    value={child}
+                    depth={depth + 1}
+                    onSelectPath={onSelectPath}
+                    searchQuery={searchQuery}
+                    matchPaths={matchPaths}
+                    safeMode={safeMode}
+                  />
+                ))
+              : (entries as [string, unknown][]).map(([k, child]) => (
+                  <TreeNode
+                    key={`${path.join(".")}.${k}`}
+                    path={[...path, k]}
+                    name={k}
+                    value={child}
+                    depth={depth + 1}
+                    onSelectPath={onSelectPath}
+                    searchQuery={searchQuery}
+                    matchPaths={matchPaths}
+                    safeMode={safeMode}
+                  />
+                ))}
+          </div>
+        )}
+        {safeMode && isHugeBranch && !forceExpandHugeBranch && (
+          <div className="px-4 pb-1 pt-0.5 text-[11px] text-amber-200/90">
+            This branch has {collectionSize.toLocaleString()} items.{" "}
+            <button
+              type="button"
+              className="underline decoration-amber-300 decoration-dotted underline-offset-2 hover:text-amber-100"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setForceExpandHugeBranch(true);
+              }}
+            >
+              Load children (may be slow)
+            </button>
+          </div>
+        )}
       </details>
     );
   }
@@ -146,6 +185,7 @@ export interface TreeViewProps {
   onSelectPath?: (path: (string | number)[]) => void;
   searchQuery?: string;
   fontScale?: number;
+  safeMode?: boolean;
 }
 
 export interface TreeViewHandle {
@@ -154,7 +194,7 @@ export interface TreeViewHandle {
 }
 
 export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeView(
-  { value, onSelectPath, searchQuery, fontScale = 1 },
+  { value, onSelectPath, searchQuery, fontScale = 1, safeMode = false },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -224,6 +264,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
         onSelectPath={onSelectPath}
         searchQuery={searchQuery}
         matchPaths={matchPaths}
+        safeMode={safeMode}
       />
     </div>
   );

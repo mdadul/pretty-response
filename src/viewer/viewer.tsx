@@ -3,14 +3,20 @@ import ReactDOM from "react-dom/client";
 import "../styles/tailwind.css";
 import { Toolbar } from "./toolbar";
 import { TreeView, type TreeViewHandle } from "./treeView";
-import { parseJson, getStats } from "../utils/jsonFormatter";
-import { loadPreferences, savePreferences, type ThemeId, type UserPreferences } from "../utils/storage";
+import { estimateNodeCount, parseJson, getStats } from "../utils/jsonFormatter";
+import { loadPreferences, savePreferences, type ThemeId, type UserPreferences, type HostPreset } from "../utils/storage";
 import { themes } from "./theme";
 import { parseJsonPath, toJsonPath } from "../utils/jsonPath";
 
 interface InitPayload {
   text: string;
   url: string;
+  contentType?: string | null;
+  navigation?: {
+    transferSize?: number;
+    encodedBodySize?: number;
+    decodedBodySize?: number;
+  };
 }
 
 declare global {
@@ -48,10 +54,16 @@ const ViewerApp: React.FC = () => {
   const [selectedPathSegments, setSelectedPathSegments] = useState<(string | number)[] | null>(null);
   const [pinnedPaths, setPinnedPaths] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchCurrentIndex, setSearchCurrentIndex] = useState<number | null>(null);
   const [fontScale, setFontScale] = useState<number>(1);
+  const [nodeCount, setNodeCount] = useState<number | null>(null);
+  const [nodeCountTruncated, setNodeCountTruncated] = useState(false);
+  const [manualSafeMode, setManualSafeMode] = useState<boolean | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const treeViewRef = useRef<TreeViewHandle>(null);
   const searchMatchIndexRef = useRef(0);
+  const toastTimeoutRef = useRef<number | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     loadPreferences().then((p) => {
@@ -61,6 +73,15 @@ const ViewerApp: React.FC = () => {
     });
   }, []);
 
+  useEffect(
+    () => () => {
+      if (toastTimeoutRef.current !== null) {
+        window.clearTimeout(toastTimeoutRef.current);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     if (!init) return;
     setRawText(init.text);
@@ -68,15 +89,28 @@ const ViewerApp: React.FC = () => {
     if (result.kind === "success") {
       setParsed(result.value);
       setParseError(null);
+      const { count, truncated } = estimateNodeCount(result.value);
+      setNodeCount(count);
+      setNodeCountTruncated(truncated);
     } else {
       setParsed(null);
       setParseError(`${result.error.message} at ${result.error.line}:${result.error.column}`);
+      setNodeCount(null);
+      setNodeCountTruncated(false);
     }
   }, [init]);
 
   const stats = useMemo(() => getStats(rawText), [rawText]);
 
+  const isHugeBySize = stats.bytes > 10 * 1024 * 1024;
+  const isHugeByNodes =
+    nodeCount !== null ? nodeCount > 50000 || (nodeCountTruncated && nodeCount >= 200000) : false;
+  const autoSafeMode = isHugeBySize || isHugeByNodes;
+  const safeModeEnabled = manualSafeMode !== null ? manualSafeMode : autoSafeMode;
+  const searchDisabled = safeModeEnabled && (isHugeBySize || isHugeByNodes);
+
   const searchMatchCount = useMemo(() => {
+    if (searchDisabled) return null;
     const q = searchQuery.trim().toLowerCase();
     if (!q || !parsed) return null;
     let count = 0;
@@ -97,11 +131,20 @@ const ViewerApp: React.FC = () => {
     };
     walk(parsed, null);
     return count;
-  }, [parsed, searchQuery]);
+  }, [parsed, searchQuery, searchDisabled]);
 
   useEffect(() => {
+    // Reset index whenever the query changes or match count updates
+    if (searchDisabled || !searchQuery.trim() || !searchMatchCount || searchMatchCount <= 0) {
+      searchMatchIndexRef.current = 0;
+      setSearchCurrentIndex(null);
+      return;
+    }
     searchMatchIndexRef.current = 0;
-  }, [searchQuery]);
+    setSearchCurrentIndex(0);
+    // Scroll to the first match so users immediately see a result
+    treeViewRef.current?.scrollToMatchIndex(0);
+  }, [searchQuery, searchMatchCount]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -115,13 +158,21 @@ const ViewerApp: React.FC = () => {
   }, []);
 
   const handleSearchNext = () => {
-    searchMatchIndexRef.current += 1;
-    treeViewRef.current?.scrollToMatchIndex(searchMatchIndexRef.current);
+    if (!searchMatchCount || searchMatchCount <= 0) return;
+    const nextRaw = searchMatchIndexRef.current + 1;
+    const wrapped = ((nextRaw % searchMatchCount) + searchMatchCount) % searchMatchCount;
+    searchMatchIndexRef.current = wrapped;
+    setSearchCurrentIndex(wrapped);
+    treeViewRef.current?.scrollToMatchIndex(wrapped);
   };
 
   const handleSearchPrev = () => {
-    searchMatchIndexRef.current -= 1;
-    treeViewRef.current?.scrollToMatchIndex(searchMatchIndexRef.current);
+    if (!searchMatchCount || searchMatchCount <= 0) return;
+    const prevRaw = searchMatchIndexRef.current - 1;
+    const wrapped = ((prevRaw % searchMatchCount) + searchMatchCount) % searchMatchCount;
+    searchMatchIndexRef.current = wrapped;
+    setSearchCurrentIndex(wrapped);
+    treeViewRef.current?.scrollToMatchIndex(wrapped);
   };
 
   const handlePreferencesChange = (next: Partial<UserPreferences>) => {
@@ -133,6 +184,17 @@ const ViewerApp: React.FC = () => {
       void savePreferences(merged);
       return merged;
     });
+  };
+
+  const showToast = (message: string) => {
+    if (toastTimeoutRef.current !== null) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+    setToast(message);
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, 1600);
   };
 
   const themeId: ThemeId = prefs?.theme ?? "dark";
@@ -169,6 +231,7 @@ const ViewerApp: React.FC = () => {
       } finally {
         document.body.removeChild(textarea);
       }
+      showToast("Copied JSON to clipboard");
     } catch (error) {
       console.error("Copy failed", error);
     }
@@ -206,18 +269,6 @@ const ViewerApp: React.FC = () => {
     const pathStr = toJsonPath(segments);
     setSelectedPath(pathStr);
     setSelectedPathSegments(segments);
-    try {
-      const textarea = document.createElement("textarea");
-      textarea.value = pathStr;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-    } catch {
-      // ignore clipboard errors
-    }
   };
 
   const handleExpandAll = () => {
@@ -257,7 +308,7 @@ const ViewerApp: React.FC = () => {
         availableThemes={themes.map((t) => ({ id: t.id, label: t.label }))}
         selectedPath={selectedPath}
         selectedPathBreadcrumbs={breadcrumbLabels}
-        onBreadcrumbClick={(index) => {
+        onBreadcrumbClick={(index: number) => {
           if (!breadcrumbSegments) return;
           const targetPath = breadcrumbSegments.slice(0, index + 1);
           treeViewRef.current?.scrollToPath(targetPath);
@@ -269,7 +320,9 @@ const ViewerApp: React.FC = () => {
         fontScale={fontScale}
         searchQuery={searchQuery}
         searchMatchCount={searchMatchCount}
+        searchCurrentIndex={searchCurrentIndex}
         searchInputRef={searchInputRef}
+        searchDisabled={searchDisabled}
         onThemeChange={(t) => handlePreferencesChange({ theme: t })}
         onCopy={handleCopy}
         onExpandAll={handleExpandAll}
@@ -293,6 +346,33 @@ const ViewerApp: React.FC = () => {
         }}
       />
 
+      {autoSafeMode && (
+        <div
+          className="flex items-center justify-between gap-2 border-b border-amber-700/70 bg-amber-950/70 px-3 py-1.5 text-[11px] text-amber-100"
+          aria-label="Safe mode notice"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">Large JSON detected</span>
+            <span className="text-amber-200/90">
+              {isHugeBySize && `Size ${(stats.bytes / (1024 * 1024)).toFixed(1)} MB`}
+              {isHugeBySize && isHugeByNodes && " · "}
+              {isHugeByNodes && nodeCount !== null && `~${nodeCount.toLocaleString()} nodes`}
+            </span>
+            {nodeCountTruncated && <span className="text-amber-300/90">(approximate)</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-amber-200/90">Safe mode {safeModeEnabled ? "on" : "off"}</span>
+            <button
+              type="button"
+              className="rounded border border-amber-500/80 px-2 py-0.5 text-[11px] text-amber-50 hover:bg-amber-600/80"
+              onClick={() => setManualSafeMode(!safeModeEnabled)}
+            >
+              {safeModeEnabled ? "Turn off" : "Turn on"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 overflow-hidden" aria-label="Pretty JSON main area">
         <div
           className="flex h-full"
@@ -304,12 +384,21 @@ const ViewerApp: React.FC = () => {
               ref={treeViewRef}
               value={parsed ?? {}}
               onSelectPath={handleSelectTreePath}
-              searchQuery={searchQuery}
+              searchQuery={searchDisabled ? "" : searchQuery}
               fontScale={fontScale}
+              safeMode={safeModeEnabled}
             />
           </div>
         </div>
       </main>
+
+      {toast && (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-50">
+          <div className="pointer-events-auto rounded-md bg-slate-900/95 px-3 py-2 text-xs text-slate-50 shadow-lg ring-1 ring-slate-700/80">
+            {toast}
+          </div>
+        </div>
+      )}
 
       <footer
         className="flex items-center justify-between border-t border-slate-800 bg-slate-950 px-3 py-1 text-xs text-slate-400"

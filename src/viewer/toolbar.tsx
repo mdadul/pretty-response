@@ -9,7 +9,9 @@ export interface ToolbarProps {
   fontScale: number;
   searchQuery: string;
   searchMatchCount: number | null;
-  searchInputRef: RefObject<HTMLInputElement | null>;
+  searchCurrentIndex: number | null;
+  searchInputRef: RefObject<HTMLInputElement>;
+  searchDisabled?: boolean;
   pinnedPaths: string[];
   isCurrentPathPinned: boolean;
   onThemeChange: (theme: ThemeId) => void;
@@ -34,7 +36,9 @@ export const Toolbar: FC<ToolbarProps> = ({
   fontScale,
   searchQuery,
   searchMatchCount,
+  searchCurrentIndex,
   searchInputRef,
+  searchDisabled = false,
   pinnedPaths,
   isCurrentPathPinned,
   onThemeChange,
@@ -184,6 +188,7 @@ export const Toolbar: FC<ToolbarProps> = ({
               onKeyDown={handleSearchKeyDown}
               spellCheck={false}
               autoComplete="off"
+              disabled={searchDisabled}
               aria-label="Search JSON"
             />
             {searchQuery && (
@@ -223,8 +228,15 @@ export const Toolbar: FC<ToolbarProps> = ({
                   >
                     ↓
                   </button>
-                  <span className="ml-1 min-w-[2ch] text-right text-[10px] tabular-nums text-slate-400" aria-label={`${searchMatchCount} matches`}>
-                    {searchMatchCount}
+                  <span
+                    className="ml-1 min-w-[3.5ch] text-right text-[10px] tabular-nums text-slate-400"
+                    aria-label={
+                      searchCurrentIndex !== null
+                        ? `Match ${searchCurrentIndex + 1} of ${searchMatchCount}`
+                        : `${searchMatchCount} matches`
+                    }
+                  >
+                    {searchCurrentIndex !== null ? `${searchCurrentIndex + 1}/${searchMatchCount}` : searchMatchCount}
                   </span>
                 </div>
               ) : (

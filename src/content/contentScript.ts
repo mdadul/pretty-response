@@ -1,7 +1,15 @@
 import { detectJsonFromHeaders, detectJsonFromText } from "../utils/jsonDetector";
 
+function getContentType(): string | null {
+  return (
+    document.contentType ||
+    document.head.querySelector("meta[http-equiv='Content-Type']")?.getAttribute("content") ||
+    null
+  );
+}
+
 function isProbablyJsonDocument(): boolean {
-  const contentType = document.contentType || document.head.querySelector("meta[http-equiv='Content-Type']")?.getAttribute("content") || null;
+  const contentType = getContentType();
   const headerDetection = detectJsonFromHeaders(contentType);
   if (headerDetection.isJson) return true;
 
@@ -35,7 +43,18 @@ function injectViewer(jsonText: string): void {
         type: "PRETTY_JSON_INIT",
         payload: {
           text: jsonText,
-          url: window.location.href
+          url: window.location.href,
+          contentType: getContentType(),
+          navigation: (() => {
+            const navEntries = performance.getEntriesByType("navigation");
+            const nav = (navEntries[0] as PerformanceNavigationTiming | undefined) ?? undefined;
+            if (!nav) return undefined;
+            return {
+              transferSize: nav.transferSize,
+              encodedBodySize: nav.encodedBodySize,
+              decodedBodySize: nav.decodedBodySize
+            };
+          })()
         }
       },
       "*"

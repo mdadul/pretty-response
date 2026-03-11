@@ -1,5 +1,12 @@
 export type ThemeId = "light" | "dark" | "dracula" | "solarized" | "nord";
 
+export interface HostPreset {
+  id: string;
+  host: string;
+  name: string;
+  pinnedPaths: string[];
+}
+
 export interface UserPreferences {
   theme: ThemeId;
   viewMode: "code" | "tree";
@@ -9,13 +16,18 @@ export interface UserPreferences {
    * Stored globally for now rather than per-origin.
    */
   pinnedPaths?: string[];
+  /**
+   * Optional saved presets, usually scoped per host/origin.
+   */
+  presets?: HostPreset[];
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: "dark",
   viewMode: "code",
   fontScale: 1,
-  pinnedPaths: []
+  pinnedPaths: [],
+  presets: []
 };
 
 export function loadPreferences(): Promise<UserPreferences> {
