@@ -2,6 +2,8 @@
 
 Pretty JSON is a browser extension that automatically detects standalone JSON responses and replaces the raw text with a fast, developer‑friendly viewer.
 
+<img width="1728" height="993" alt="image" src="https://github.com/user-attachments/assets/264f80ba-9a3e-44f8-9f87-a31c42ad6a7a" />
+<img width="1728" height="993" alt="image" src="https://github.com/user-attachments/assets/af9054d9-b869-4abd-b84b-9abebbd9012f" />
 
 
 ## Development
