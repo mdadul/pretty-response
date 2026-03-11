@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Pretty JSON Viewer",
+  "description": "Automatically detects and formats JSON responses in the browser with a powerful developer-friendly viewer.",
+  "version": "1.0.0",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/contentScript.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icons/pretty-json-icon.png",
+    "32": "icons/pretty-json-icon.png",
+    "48": "icons/pretty-json-icon.png",
+    "128": "icons/pretty-json-icon.png"
+  },
+  "action": {
+    "default_title": "Pretty JSON Viewer"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/viewer/viewer.html",
+        "src/viewer/viewer.js",
+        "src/viewer/viewer.css",
+        "assets/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
+

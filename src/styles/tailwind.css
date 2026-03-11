@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  @apply h-full;
+}
+
+body {
+  @apply bg-slate-900 text-slate-100;
+}
+
+.pj-key {
+  @apply text-sky-300;
+}
+
+.pj-value.pj-string {
+  @apply text-emerald-300;
+}
+
+.pj-value.pj-number {
+  @apply text-amber-300;
+}
+
+.pj-value.pj-boolean {
+  @apply text-purple-300;
+}
+
+.pj-value.pj-null,
+.pj-value.pj-other {
+  @apply text-slate-300;
+}
+
+.theme-light {
+  @apply bg-slate-50 text-slate-900;
+}
+
+.theme-light .pj-key {
+  @apply text-sky-700;
+}
+
+.theme-light .pj-value.pj-string {
+  @apply text-emerald-700;
+}
+
+.theme-light .pj-value.pj-number {
+  @apply text-amber-700;
+}
+
+.theme-light .pj-value.pj-boolean {
+  @apply text-purple-700;
+}
+
+.theme-light .pj-value.pj-null,
+.theme-light .pj-value.pj-other {
+  @apply text-slate-700;
+}
+
+.theme-dark {
+  @apply bg-slate-900 text-slate-100;
+}
+
+.theme-dracula {
+  background-color: #282a36;
+  color: #f8f8f2;
+}
+
+.theme-dracula .pj-key {
+  color: #8be9fd;
+}
+
+.theme-dracula .pj-value.pj-string {
+  color: #f1fa8c;
+}
+
+.theme-dracula .pj-value.pj-number {
+  color: #bd93f9;
+}
+
+.theme-dracula .pj-value.pj-boolean {
+  color: #ff79c6;
+}
+
+.theme-dracula .pj-value.pj-null,
+.theme-dracula .pj-value.pj-other {
+  color: #ffb86c;
+}
+
+.theme-solarized {
+  background-color: #fdf6e3;
+  color: #657b83;
+}
+
+.theme-solarized .pj-key {
+  color: #268bd2;
+}
+
+.theme-solarized .pj-value.pj-string {
+  color: #2aa198;
+}
+
+.theme-solarized .pj-value.pj-number {
+  color: #d33682;
+}
+
+.theme-solarized .pj-value.pj-boolean {
+  color: #b58900;
+}
+
+.theme-solarized .pj-value.pj-null,
+.theme-solarized .pj-value.pj-other {
+  color: #586e75;
+}
+
+.theme-nord {
+  background-color: #2e3440;
+  color: #d8dee9;
+}
+
+.theme-nord .pj-key {
+  color: #88c0d0;
+}
+
+.theme-nord .pj-value.pj-string {
+  color: #a3be8c;
+}
+
+.theme-nord .pj-value.pj-number {
+  color: #ebcb8b;
+}
+
+.theme-nord .pj-value.pj-boolean {
+  color: #b48ead;
+}
+
+.theme-nord .pj-value.pj-null,
+.theme-nord .pj-value.pj-other {
+  color: #e5e9f0;
+}
+
