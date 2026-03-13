@@ -4,9 +4,7 @@
   "description": "Automatically detects and formats JSON responses in the browser with a powerful developer-friendly viewer.",
   "version": "1.0.0",
   "permissions": [
-    "activeTab",
-    "storage",
-    "scripting"
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"
