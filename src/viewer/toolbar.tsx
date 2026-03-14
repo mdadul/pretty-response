@@ -26,6 +26,10 @@ export interface ToolbarProps {
   onSearchPrev: () => void;
   onIncreaseFont: () => void;
   onDecreaseFont: () => void;
+  onCopyJsonSchema: () => void;
+  onCopyTypescriptTypes: () => void;
+  onCopyZodSchema: () => void;
+  onCopyPydanticModel: () => void;
 }
 
 export const Toolbar: FC<ToolbarProps> = ({
@@ -52,7 +56,11 @@ export const Toolbar: FC<ToolbarProps> = ({
   onSearchNext,
   onSearchPrev,
   onIncreaseFont,
-  onDecreaseFont
+  onDecreaseFont,
+  onCopyJsonSchema,
+  onCopyTypescriptTypes,
+  onCopyZodSchema,
+  onCopyPydanticModel
 }) => {
   const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
@@ -69,15 +77,15 @@ export const Toolbar: FC<ToolbarProps> = ({
 
   return (
     <header
-      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-slate-700/80 bg-slate-900/95 px-4 py-2.5 text-sm backdrop-blur-sm"
+      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-slate-700/70 bg-slate-900/98 px-4 py-2.5 text-sm shadow-sm backdrop-blur-sm"
       aria-label="Pretty JSON toolbar"
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="shrink-0 text-base font-medium tracking-tight text-slate-100">Pretty JSON</span>
-        <span className="h-5 w-px shrink-0 bg-slate-600" aria-hidden />
+        <span className="shrink-0 text-base font-semibold tracking-tight text-slate-100">Pretty JSON</span>
+        <span className="h-5 w-px shrink-0 bg-slate-600/80" aria-hidden />
         <div className="flex min-w-0 items-center gap-2">
           <nav
-            className="flex min-w-0 items-center gap-1 text-xs text-slate-400"
+            className="flex min-w-0 items-center gap-1.5 text-xs text-slate-400"
             aria-label="Selected JSON path breadcrumbs"
           >
             {selectedPathBreadcrumbs.length > 0 ? (
@@ -91,7 +99,7 @@ export const Toolbar: FC<ToolbarProps> = ({
                     )}
                     <button
                       type="button"
-                      className="max-w-[9rem] truncate rounded px-1 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800/80 hover:text-slate-50"
+                      className="max-w-[9rem] truncate rounded-md px-1.5 py-0.5 text-[11px] text-slate-300 transition-colors hover:bg-slate-800/80 hover:text-slate-50"
                       onClick={() => onBreadcrumbClick(index)}
                       title={selectedPath ?? undefined}
                     >
@@ -101,18 +109,18 @@ export const Toolbar: FC<ToolbarProps> = ({
                 ))}
               </>
             ) : (
-              <span className="min-w-0 truncate font-mono text-xs text-slate-400">
+              <span className="min-w-0 truncate font-mono text-xs text-slate-500">
                 Click a node to copy path
               </span>
             )}
           </nav>
           <button
             type="button"
-            className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] ${
+            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] transition-colors ${
               selectedPath
                 ? isCurrentPathPinned
-                  ? "border-emerald-500/60 text-emerald-300"
-                  : "border-slate-600 text-slate-300 hover:border-slate-400 hover:text-slate-50"
+                  ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                  : "border-slate-600 text-slate-300 hover:border-slate-500 hover:bg-slate-800/80 hover:text-slate-50"
                 : "cursor-not-allowed border-slate-700 text-slate-600"
             }`}
             disabled={!selectedPath}
@@ -123,7 +131,7 @@ export const Toolbar: FC<ToolbarProps> = ({
           </button>
           {pinnedPaths.length > 0 && (
             <select
-              className="hidden sm:block max-w-[12rem] shrink-0 truncate rounded border border-slate-700/70 bg-slate-900/70 px-1.5 py-0.5 text-[11px] text-slate-300 hover:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500/60"
+              className="hidden sm:block max-w-[12rem] shrink-0 truncate rounded-md border border-slate-700/70 bg-slate-800/50 px-1.5 py-0.5 text-[11px] text-slate-300 transition-colors hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500/50"
               onChange={(e) => {
                 const value = e.target.value;
                 if (!value) return;
@@ -147,19 +155,60 @@ export const Toolbar: FC<ToolbarProps> = ({
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-1" aria-label="Viewer actions">
-        <div className="flex items-center rounded-md border border-slate-700/60 bg-slate-800/60">
+      <div className="flex shrink-0 flex-wrap items-center gap-2" aria-label="Viewer actions">
+        <div className="flex items-center overflow-hidden rounded-lg border border-slate-700/60 bg-slate-800/50 shadow-inner">
           <button
             type="button"
-            className="rounded-l-md border-r border-slate-700/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700/60 hover:text-slate-100"
+            className="rounded-l-lg border-r border-slate-700/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
             onClick={onCopy}
             title="Copy JSON"
           >
             Copy
           </button>
+          <div className="relative">
+            <details className="group/open inline-block">
+              <summary
+                className="flex cursor-pointer list-none items-center gap-1 border-r border-slate-700/60 px-2 py-1.5 text-xs text-slate-300 transition-colors hover:bg-slate-700/70 hover:text-slate-100 [&::-webkit-details-marker]:hidden"
+                aria-label="Copy schema"
+              >
+                Schema
+                <span className="text-slate-500" aria-hidden>▾</span>
+              </summary>
+              <div className="absolute right-0 z-20 mt-1.5 w-52 rounded-lg border border-slate-700/80 bg-slate-900/98 py-1 text-xs text-slate-100 shadow-xl ring-1 ring-slate-700/50">
+                <button
+                  type="button"
+                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                  onClick={onCopyJsonSchema}
+                >
+                  JSON Schema (Ajv)
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                  onClick={onCopyTypescriptTypes}
+                >
+                  TypeScript types
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                  onClick={onCopyZodSchema}
+                >
+                  Zod schema
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                  onClick={onCopyPydanticModel}
+                >
+                  Pydantic model
+                </button>
+              </div>
+            </details>
+          </div>
           <button
             type="button"
-            className="border-r border-slate-700/60 px-2 py-1.5 text-xs text-slate-400 transition-colors hover:bg-slate-700/60 hover:text-slate-200"
+            className="border-r border-slate-700/60 px-2 py-1.5 text-xs text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-200"
             onClick={onExpandAll}
             title="Expand all nodes"
           >
@@ -167,7 +216,7 @@ export const Toolbar: FC<ToolbarProps> = ({
           </button>
           <button
             type="button"
-            className="rounded-r-md px-2 py-1.5 text-xs text-slate-400 transition-colors hover:bg-slate-700/60 hover:text-slate-200"
+            className="rounded-r-lg px-2 py-1.5 text-xs text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-200"
             onClick={onCollapseAll}
             title="Collapse all nodes"
           >
@@ -175,7 +224,7 @@ export const Toolbar: FC<ToolbarProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center overflow-hidden rounded-md border border-slate-700/60 bg-slate-800/60">
+        <div className="flex items-center overflow-hidden rounded-lg border border-slate-700/60 bg-slate-800/50 shadow-inner">
           <div className="relative flex shrink-0">
             <input
               ref={searchInputRef}
@@ -183,7 +232,7 @@ export const Toolbar: FC<ToolbarProps> = ({
               role="searchbox"
               placeholder="Search (Ctrl+F)"
               value={searchQuery}
-              className="w-40 rounded-l-md border-0 bg-transparent py-1.5 pl-2.5 pr-7 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-0"
+              className="w-40 rounded-l-lg border-0 bg-transparent py-1.5 pl-2.5 pr-7 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-0"
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               spellCheck={false}
@@ -246,10 +295,10 @@ export const Toolbar: FC<ToolbarProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-0.5 rounded-md border border-slate-700/60 bg-slate-800/60">
+        <div className="flex items-center overflow-hidden rounded-lg border border-slate-700/60 bg-slate-800/50 shadow-inner">
           <button
             type="button"
-            className="rounded-l-md border-r border-slate-700/60 px-1.5 py-1 text-[10px] text-slate-400 transition-colors hover:text-slate-100"
+            className="rounded-l-lg border-r border-slate-700/60 px-1.5 py-1 text-[10px] text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
             onClick={onDecreaseFont}
             aria-label="Decrease font size"
             title="Smaller"
@@ -258,7 +307,7 @@ export const Toolbar: FC<ToolbarProps> = ({
           </button>
           <button
             type="button"
-            className="rounded-r-md px-1.5 py-1 text-[10px] text-slate-400 transition-colors hover:text-slate-100"
+            className="rounded-r-lg px-1.5 py-1 text-[10px] text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
             onClick={onIncreaseFont}
             aria-label="Increase font size"
             title="Larger"
@@ -269,7 +318,7 @@ export const Toolbar: FC<ToolbarProps> = ({
 
         <label className="flex items-center gap-1.5" aria-label="Theme">
           <select
-            className="rounded-md border border-slate-700/60 bg-slate-800/60 px-2 py-1.5 text-xs text-slate-200 transition-colors hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500/50"
+            className="rounded-lg border border-slate-700/60 bg-slate-800/50 px-2 py-1.5 text-xs text-slate-200 shadow-inner transition-colors hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500/50"
             value={theme}
             onChange={(e) => onThemeChange(e.target.value as ThemeId)}
           >

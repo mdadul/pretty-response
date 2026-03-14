@@ -7,6 +7,9 @@ import { estimateNodeCount, parseJson, getStats } from "../utils/jsonFormatter";
 import { loadPreferences, savePreferences, type ThemeId, type UserPreferences, type HostPreset } from "../utils/storage";
 import { themes } from "./theme";
 import { parseJsonPath, toJsonPath } from "../utils/jsonPath";
+import { buildIntermediateSchema } from "../utils/jsonTypes";
+import { toJsonSchema, toPydantic, toTypescript, toZod } from "../utils/schemaGenerator";
+import { copyTextToClipboard } from "../utils/clipboard";
 
 interface InitPayload {
   text: string;
@@ -64,6 +67,7 @@ const ViewerApp: React.FC = () => {
   const searchMatchIndexRef = useRef(0);
   const toastTimeoutRef = useRef<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const schemaCacheRef = useRef<{ text: string; schema: ReturnType<typeof buildIntermediateSchema> } | null>(null);
 
   useEffect(() => {
     loadPreferences().then((p) => {
@@ -98,6 +102,7 @@ const ViewerApp: React.FC = () => {
       setNodeCount(null);
       setNodeCountTruncated(false);
     }
+    schemaCacheRef.current = null;
   }, [init]);
 
   const stats = useMemo(() => getStats(rawText), [rawText]);
@@ -237,6 +242,48 @@ const ViewerApp: React.FC = () => {
     }
   };
 
+  const ensureSchema = () => {
+    if (!parsed) return null;
+    if (schemaCacheRef.current && schemaCacheRef.current.text === rawText) {
+      return schemaCacheRef.current.schema;
+    }
+    const schema = buildIntermediateSchema(parsed);
+    schemaCacheRef.current = { text: rawText, schema };
+    return schema;
+  };
+
+  const handleCopySchema = async (kind: "json-schema" | "ts" | "zod" | "pydantic") => {
+    const schema = ensureSchema();
+    if (!schema) return;
+    let text: string;
+    switch (kind) {
+      case "json-schema":
+        text = toJsonSchema(schema);
+        break;
+      case "ts":
+        text = toTypescript(schema, "Root");
+        break;
+      case "zod":
+        text = toZod(schema, "RootSchema");
+        break;
+      case "pydantic":
+        text = toPydantic(schema, "RootModel");
+        break;
+    }
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      showToast(
+        kind === "json-schema"
+          ? "Copied JSON Schema"
+          : kind === "ts"
+            ? "Copied TypeScript types"
+            : kind === "zod"
+              ? "Copied Zod schema"
+              : "Copied Pydantic model"
+      );
+    }
+  };
+
   const handleDrop: React.DragEventHandler<HTMLDivElement> = (event) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
@@ -325,6 +372,10 @@ const ViewerApp: React.FC = () => {
         searchDisabled={searchDisabled}
         onThemeChange={(t) => handlePreferencesChange({ theme: t })}
         onCopy={handleCopy}
+        onCopyJsonSchema={() => void handleCopySchema("json-schema")}
+        onCopyTypescriptTypes={() => void handleCopySchema("ts")}
+        onCopyZodSchema={() => void handleCopySchema("zod")}
+        onCopyPydanticModel={() => void handleCopySchema("pydantic")}
         onExpandAll={handleExpandAll}
         onCollapseAll={handleCollapseAll}
         onSearchChange={setSearchQuery}
@@ -348,7 +399,7 @@ const ViewerApp: React.FC = () => {
 
       {autoSafeMode && (
         <div
-          className="flex items-center justify-between gap-2 border-b border-amber-700/70 bg-amber-950/70 px-3 py-1.5 text-[11px] text-amber-100"
+          className="flex items-center justify-between gap-2 border-b border-amber-600/50 bg-amber-950/60 px-4 py-2 text-[11px] text-amber-100"
           aria-label="Safe mode notice"
         >
           <div className="flex flex-wrap items-center gap-2">
@@ -364,7 +415,7 @@ const ViewerApp: React.FC = () => {
             <span className="text-amber-200/90">Safe mode {safeModeEnabled ? "on" : "off"}</span>
             <button
               type="button"
-              className="rounded border border-amber-500/80 px-2 py-0.5 text-[11px] text-amber-50 hover:bg-amber-600/80"
+              className="rounded-md border border-amber-500/70 px-2 py-1 text-[11px] text-amber-50 transition-colors hover:bg-amber-600/50"
               onClick={() => setManualSafeMode(!safeModeEnabled)}
             >
               {safeModeEnabled ? "Turn off" : "Turn on"}
@@ -393,21 +444,21 @@ const ViewerApp: React.FC = () => {
       </main>
 
       {toast && (
-        <div className="pointer-events-none fixed bottom-4 right-4 z-50">
-          <div className="pointer-events-auto rounded-md bg-slate-900/95 px-3 py-2 text-xs text-slate-50 shadow-lg ring-1 ring-slate-700/80">
+        <div className="pointer-events-none fixed bottom-5 right-5 z-50">
+          <div className="pointer-events-auto rounded-lg bg-slate-800 px-4 py-2.5 text-xs font-medium text-slate-100 shadow-xl ring-1 ring-slate-600/50">
             {toast}
           </div>
         </div>
       )}
 
       <footer
-        className="flex items-center justify-between border-t border-slate-800 bg-slate-950 px-3 py-1 text-xs text-slate-400"
+        className="flex items-center justify-between border-t border-slate-800/80 bg-slate-900/80 px-4 py-2 text-xs text-slate-400"
         aria-label="Pretty JSON status bar"
       >
-        <span>
+        <span className="tabular-nums">
           Size: {(stats.bytes / 1024).toFixed(1)} KB · Lines: {stats.lines}
         </span>
-        <span className="truncate">
+        <span className="truncate pl-4">
           {parseError ? <span className="text-rose-400">Error: {parseError}</span> : init?.url}
         </span>
       </footer>

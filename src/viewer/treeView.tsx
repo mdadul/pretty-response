@@ -1,5 +1,7 @@
 import type { FC, MouseEvent } from "react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { inferJsonKind } from "../utils/jsonTypes";
+import { copyTextToClipboard } from "../utils/clipboard";
 
 interface TreeNodeProps {
   path: (string | number)[];
@@ -12,7 +14,7 @@ interface TreeNodeProps {
   safeMode?: boolean;
 }
 
-const INDENT_PX = 14;
+const INDENT_PX = 18;
 
 function safeValueText(value: unknown): string {
   if (value === null || value === undefined) {
@@ -41,8 +43,44 @@ function safeValueText(value: unknown): string {
 
 const pathKey = (p: (string | number)[]) => p.join(".");
 
+const CopyIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+const CheckIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
 const TreeNode: FC<TreeNodeProps> = ({ path, name, value, depth, onSelectPath, searchQuery, matchPaths, safeMode }) => {
   const [forceExpandHugeBranch, setForceExpandHugeBranch] = useState(false);
+  const [copied, setCopied] = useState(false);
   const isObject = value !== null && typeof value === "object" && !Array.isArray(value);
   const isArray = Array.isArray(value);
   const label = name !== null ? String(name) : "";
@@ -99,15 +137,36 @@ const TreeNode: FC<TreeNodeProps> = ({ path, name, value, depth, onSelectPath, s
     const entries = isArray ? (collection as unknown[]) : Object.entries(collection as Record<string, unknown>);
     return (
       <details
-        className="group"
+        className="pj-details"
         open={showChildren && (depth < 2 || !!hasMatchInSubtree)}
         aria-label={name ?? "root node"}
         data-path={pathKey(path)}
       >
-        <summary className="cursor-pointer select-none" style={{ paddingLeft: depth * INDENT_PX }}>
+        <summary className="group/summary flex cursor-pointer select-none items-center gap-2 rounded py-1 pr-2 transition-colors hover:bg-slate-800/60 [&::-webkit-details-marker]:hidden" style={{ paddingLeft: depth * INDENT_PX + 4 }}>
+          <span className="pj-toggle shrink-0 text-slate-500 transition-transform duration-150" aria-hidden>▶</span>
           {name !== null && <span className="font-mono pj-key">{name}</span>}
-          <span className="text-slate-400">{isArray ? " [ ]" : " { }"}</span>
-          <span className="ml-1 text-slate-500">({entries.length})</span>
+          <span className="text-slate-500">{isArray ? "[]" : "{}"}</span>
+          <span className="text-slate-500 text-[11px]">({entries.length})</span>
+          <span className="pj-type-badge rounded bg-slate-700/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+            {isArray ? "array" : "object"}
+          </span>
+          <button
+            type="button"
+            className="shrink-0 rounded p-1 text-slate-500 opacity-0 transition-[opacity,color] hover:text-slate-200 group-hover/summary:opacity-100"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const toCopy = name !== null ? JSON.stringify({ [name]: value }) : JSON.stringify(value);
+              const ok = await copyTextToClipboard(toCopy);
+              if (ok) {
+                setCopied(true);
+              }
+            }}
+            title="Copy key and value"
+            aria-label="Copy key and value"
+          >
+            {copied ? <CheckIcon className="text-emerald-400" /> : <CopyIcon />}
+          </button>
           {safeMode && isHugeBranch && !forceExpandHugeBranch && (
             <span className="ml-2 rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-200">
               Safe mode: large subtree hidden
@@ -165,17 +224,44 @@ const TreeNode: FC<TreeNodeProps> = ({ path, name, value, depth, onSelectPath, s
     );
   }
 
+  const copyPayload =
+    name !== null
+      ? JSON.stringify({ [name]: value })
+      : value === null || value === undefined
+        ? String(value)
+        : typeof value === "object"
+          ? JSON.stringify(value)
+          : String(value);
+
   return (
     <div
-      className={`cursor-pointer hover:bg-slate-800 ${matches ? "bg-amber-900/40" : ""}`}
-      style={{ paddingLeft: depth * INDENT_PX }}
+      className={`group flex cursor-pointer items-center gap-2 rounded py-1 pr-2 transition-colors ${matches ? "bg-amber-900/30 ring-1 ring-amber-600/40" : "hover:bg-slate-800/60"}`}
+      style={{ paddingLeft: depth * INDENT_PX + 4 }}
       aria-label={name ? `${name} value` : "value"}
       data-search-match={matches ? "true" : undefined}
       data-path={pathKey(path)}
       onClick={handleClick}
     >
-      {name !== null && <span className="mr-1 font-mono pj-key">{name}:</span>}
-      <span className={`font-mono pj-value pj-${valueKind}`}>{valueText}</span>
+      {name !== null && <span className="shrink-0 font-mono pj-key">{name}:</span>}
+      <span className={`min-w-0 truncate font-mono pj-value pj-${valueKind}`} title={valueText}>{valueText}</span>
+      <span className="pj-type-badge shrink-0 rounded bg-slate-700/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+        {inferJsonKind(value)}
+      </span>
+      <button
+        type="button"
+        className="shrink-0 rounded p-1 text-slate-500 opacity-0 transition-[opacity,color] hover:text-slate-200 group-hover:opacity-100"
+        onClick={async (event) => {
+          event.stopPropagation();
+          const ok = await copyTextToClipboard(copyPayload);
+          if (ok) {
+            setCopied(true);
+          }
+        }}
+        title="Copy key and value"
+        aria-label="Copy key and value"
+      >
+        {copied ? <CheckIcon className="text-emerald-400" /> : <CopyIcon />}
+      </button>
     </div>
   );
 };
@@ -252,7 +338,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-auto p-2 font-mono"
+      className="h-full overflow-auto px-3 py-3 font-mono leading-relaxed"
       style={{ fontSize: `${fontScale * 12}px` }}
       aria-label="JSON tree view"
     >

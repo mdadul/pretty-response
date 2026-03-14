@@ -2,7 +2,7 @@
 module.exports = {
   content: [
     "./src/viewer/**/*.{ts,tsx,html}",
-    "./src/styles/**/*.{css}"
+    "./src/styles/**/*.css"
   ],
   theme: {
     extend: {

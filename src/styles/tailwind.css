@@ -11,6 +11,11 @@ body {
   @apply bg-slate-900 text-slate-100;
 }
 
+/* Tree: details open arrow */
+.pj-details[open] .pj-toggle {
+  transform: rotate(90deg);
+}
+
 .pj-key {
   @apply text-sky-300;
 }
@@ -137,5 +142,25 @@ body {
 .theme-nord .pj-value.pj-null,
 .theme-nord .pj-value.pj-other {
   color: #e5e9f0;
+}
+
+/* Type badges (tree) */
+.theme-light .pj-type-badge {
+  @apply bg-slate-200/90 text-slate-600;
+}
+.theme-dark .pj-type-badge {
+  @apply bg-slate-700/80 text-slate-400;
+}
+.theme-dracula .pj-type-badge {
+  background: rgba(68, 71, 90, 0.9);
+  color: #6272a4;
+}
+.theme-solarized .pj-type-badge {
+  background: rgba(147, 161, 161, 0.35);
+  color: #586e75;
+}
+.theme-nord .pj-type-badge {
+  background: rgba(59, 66, 82, 0.9);
+  color: #81a1c1;
 }
 
