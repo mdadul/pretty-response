@@ -1,5 +1,6 @@
 import type { ThemeId } from "../utils/storage";
 import type { FC, KeyboardEvent, RefObject } from "react";
+import { useState } from "react";
 
 export interface ToolbarProps {
   theme: ThemeId;
@@ -30,6 +31,8 @@ export interface ToolbarProps {
   onCopyTypescriptTypes: () => void;
   onCopyZodSchema: () => void;
   onCopyPydanticModel: () => void;
+  onCopyYupSchema: () => void;
+  onCopyJoiSchema: () => void;
 }
 
 export const Toolbar: FC<ToolbarProps> = ({
@@ -60,8 +63,11 @@ export const Toolbar: FC<ToolbarProps> = ({
   onCopyJsonSchema,
   onCopyTypescriptTypes,
   onCopyZodSchema,
-  onCopyPydanticModel
+  onCopyPydanticModel,
+  onCopyYupSchema,
+  onCopyJoiSchema
 }) => {
+  const [schemaMenuOpen, setSchemaMenuOpen] = useState(false);
   const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
       e.currentTarget.blur();
@@ -156,7 +162,7 @@ export const Toolbar: FC<ToolbarProps> = ({
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2" aria-label="Viewer actions">
-        <div className="flex items-center overflow-hidden rounded-lg border border-slate-700/60 bg-slate-800/50 shadow-inner">
+        <div className="flex items-center rounded-lg border border-slate-700/60 bg-slate-800/50 shadow-inner">
           <button
             type="button"
             className="rounded-l-lg border-r border-slate-700/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
@@ -165,47 +171,82 @@ export const Toolbar: FC<ToolbarProps> = ({
           >
             Copy
           </button>
-          <div className="relative">
-            <details className="group/open inline-block">
-              <summary
-                className="flex cursor-pointer list-none items-center gap-1 border-r border-slate-700/60 px-2 py-1.5 text-xs text-slate-300 transition-colors hover:bg-slate-700/70 hover:text-slate-100 [&::-webkit-details-marker]:hidden"
+            <div className="relative">
+              <button
+                type="button"
+                className="flex cursor-pointer items-center gap-1 border-r border-slate-700/60 px-2 py-1.5 text-xs text-slate-300 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
                 aria-label="Copy schema"
+                onClick={() => setSchemaMenuOpen((open) => !open)}
               >
                 Schema
                 <span className="text-slate-500" aria-hidden>▾</span>
-              </summary>
-              <div className="absolute right-0 z-20 mt-1.5 w-52 rounded-lg border border-slate-700/80 bg-slate-900/98 py-1 text-xs text-slate-100 shadow-xl ring-1 ring-slate-700/50">
-                <button
-                  type="button"
-                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
-                  onClick={onCopyJsonSchema}
-                >
-                  JSON Schema (Ajv)
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
-                  onClick={onCopyTypescriptTypes}
-                >
-                  TypeScript types
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
-                  onClick={onCopyZodSchema}
-                >
-                  Zod schema
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
-                  onClick={onCopyPydanticModel}
-                >
-                  Pydantic model
-                </button>
-              </div>
-            </details>
-          </div>
+              </button>
+              {schemaMenuOpen && (
+                <div className="absolute right-0 z-20 mt-1.5 w-52 rounded-lg border border-slate-700/80 bg-slate-900/98 py-1 text-xs text-slate-100 shadow-xl ring-1 ring-slate-700/50">
+                  <button
+                    type="button"
+                    className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                    onClick={() => {
+                      onCopyJsonSchema();
+                      setSchemaMenuOpen(false);
+                    }}
+                  >
+                    JSON Schema (Ajv)
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                    onClick={() => {
+                      onCopyTypescriptTypes();
+                      setSchemaMenuOpen(false);
+                    }}
+                  >
+                    TypeScript types
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                    onClick={() => {
+                      onCopyZodSchema();
+                      setSchemaMenuOpen(false);
+                    }}
+                  >
+                    Zod schema
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                    onClick={() => {
+                      onCopyPydanticModel();
+                      setSchemaMenuOpen(false);
+                    }}
+                  >
+                    Pydantic model
+                  </button>
+                  <div className="my-1 h-px bg-slate-700/70" />
+                  <button
+                    type="button"
+                    className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                    onClick={() => {
+                      onCopyYupSchema();
+                      setSchemaMenuOpen(false);
+                    }}
+                  >
+                    Yup schema
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-slate-800/90"
+                    onClick={() => {
+                      onCopyJoiSchema();
+                      setSchemaMenuOpen(false);
+                    }}
+                  >
+                    Joi schema
+                  </button>
+                </div>
+              )}
+            </div>
           <button
             type="button"
             className="border-r border-slate-700/60 px-2 py-1.5 text-xs text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-200"

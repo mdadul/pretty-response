@@ -1,14 +1,5 @@
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   try {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // fall through to legacy path
-  }
-
-  try {
     const textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.position = "fixed";

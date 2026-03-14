@@ -149,6 +149,49 @@ function zodForSchema(schema: IntermediateSchema, level: number): string {
   }
 }
 
+export function toYup(root: IntermediateSchema, rootName = "RootSchema"): string {
+  const lines: string[] = [`import * as yup from "yup";`, "", `export const ${rootName} = ${yupForSchema(root, 0)};`];
+  return lines.join("\n");
+}
+
+function yupForSchema(schema: IntermediateSchema, level: number): string {
+  switch (schema.kind) {
+    case "string":
+      return "yup.string()";
+    case "number":
+      return "yup.number()";
+    case "boolean":
+      return "yup.boolean()";
+    case "null":
+      return "yup.mixed().nullable()";
+    case "unknown":
+      return "yup.mixed()";
+    case "array": {
+      const s = schema as IntermediateArraySchema;
+      return `yup.array(${yupForSchema(s.item, level)})`;
+    }
+    case "object": {
+      const s = schema as IntermediateObjectSchema;
+      const entries = Object.entries(s.properties);
+      if (entries.length === 0) return "yup.object().noUnknown()";
+      const fields = entries.map(([key, value]) => {
+        const required = s.required.includes(key);
+        const inner = yupForSchema(value, level + 1);
+        const expr = required ? inner + ".required()" : inner;
+        return `${indent(level + 1)}${JSON.stringify(key)}: ${expr}`;
+      });
+      return `yup.object({\n${fields.join(",\n")}\n${indent(level)}})`;
+    }
+    case "union": {
+      const s = schema as IntermediateUnionSchema;
+      const variants = s.variants.map((v) => yupForSchema(v, level));
+      return `yup.mixed().oneOf([${variants.join(", ")}])`;
+    }
+    default:
+      return "yup.mixed()";
+  }
+}
+
 export function toPydantic(root: IntermediateSchema, rootName = "RootModel"): string {
   const imports = `from __future__ import annotations\nfrom typing import Any, List, Optional, Union\nfrom pydantic import BaseModel\n`;
   const body = pydanticForSchema(root, rootName, 0);
@@ -180,6 +223,49 @@ function pydanticForSchema(schema: IntermediateSchema, rootName: string, level: 
       const ann = pyTypeForSchema(schema, level);
       return `class ${rootName}(BaseModel):\n${indent(1)}value: ${ann}`;
     }
+  }
+}
+
+export function toJoi(root: IntermediateSchema, rootName = "rootSchema"): string {
+  const lines: string[] = [`import Joi from "joi";`, "", `export const ${rootName} = ${joiForSchema(root, 0)};`];
+  return lines.join("\n");
+}
+
+function joiForSchema(schema: IntermediateSchema, level: number): string {
+  switch (schema.kind) {
+    case "string":
+      return "Joi.string()";
+    case "number":
+      return "Joi.number()";
+    case "boolean":
+      return "Joi.boolean()";
+    case "null":
+      return "Joi.any().allow(null)";
+    case "unknown":
+      return "Joi.any()";
+    case "array": {
+      const s = schema as IntermediateArraySchema;
+      return `Joi.array().items(${joiForSchema(s.item, level)})`;
+    }
+    case "object": {
+      const s = schema as IntermediateObjectSchema;
+      const entries = Object.entries(s.properties);
+      if (entries.length === 0) return "Joi.object().unknown(false)";
+      const fields = entries.map(([key, value]) => {
+        const required = s.required.includes(key);
+        const inner = joiForSchema(value, level + 1);
+        const expr = required ? inner + ".required()" : inner;
+        return `${indent(level + 1)}${JSON.stringify(key)}: ${expr}`;
+      });
+      return `Joi.object({\n${fields.join(",\n")}\n${indent(level)}})`;
+    }
+    case "union": {
+      const s = schema as IntermediateUnionSchema;
+      const variants = s.variants.map((v) => joiForSchema(v, level));
+      return `Joi.alternatives().try(${variants.join(", ")})`;
+    }
+    default:
+      return "Joi.any()";
   }
 }
 

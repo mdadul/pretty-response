@@ -8,7 +8,7 @@ import { loadPreferences, savePreferences, type ThemeId, type UserPreferences, t
 import { themes } from "./theme";
 import { parseJsonPath, toJsonPath } from "../utils/jsonPath";
 import { buildIntermediateSchema } from "../utils/jsonTypes";
-import { toJsonSchema, toPydantic, toTypescript, toZod } from "../utils/schemaGenerator";
+import { toJsonSchema, toPydantic, toTypescript, toZod, toYup, toJoi } from "../utils/schemaGenerator";
 import { copyTextToClipboard } from "../utils/clipboard";
 
 interface InitPayload {
@@ -252,7 +252,7 @@ const ViewerApp: React.FC = () => {
     return schema;
   };
 
-  const handleCopySchema = async (kind: "json-schema" | "ts" | "zod" | "pydantic") => {
+  const handleCopySchema = async (kind: "json-schema" | "ts" | "zod" | "pydantic" | "yup" | "joi") => {
     const schema = ensureSchema();
     if (!schema) return;
     let text: string;
@@ -269,6 +269,12 @@ const ViewerApp: React.FC = () => {
       case "pydantic":
         text = toPydantic(schema, "RootModel");
         break;
+      case "yup":
+        text = toYup(schema, "RootSchema");
+        break;
+      case "joi":
+        text = toJoi(schema, "rootSchema");
+        break;
     }
     const ok = await copyTextToClipboard(text);
     if (ok) {
@@ -279,7 +285,11 @@ const ViewerApp: React.FC = () => {
             ? "Copied TypeScript types"
             : kind === "zod"
               ? "Copied Zod schema"
-              : "Copied Pydantic model"
+              : kind === "pydantic"
+                ? "Copied Pydantic model"
+                : kind === "yup"
+                  ? "Copied Yup schema"
+                  : "Copied Joi schema"
       );
     }
   };
@@ -376,6 +386,8 @@ const ViewerApp: React.FC = () => {
         onCopyTypescriptTypes={() => void handleCopySchema("ts")}
         onCopyZodSchema={() => void handleCopySchema("zod")}
         onCopyPydanticModel={() => void handleCopySchema("pydantic")}
+        onCopyYupSchema={() => void handleCopySchema("yup")}
+        onCopyJoiSchema={() => void handleCopySchema("joi")}
         onExpandAll={handleExpandAll}
         onCollapseAll={handleCollapseAll}
         onSearchChange={setSearchQuery}
