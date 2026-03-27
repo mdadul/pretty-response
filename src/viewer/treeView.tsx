@@ -338,7 +338,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-auto px-3 py-3 font-mono leading-relaxed"
+      className="box-border min-h-0 h-full max-h-full w-full min-w-0 overflow-auto px-3 py-3 font-mono leading-relaxed"
       style={{ fontSize: `${fontScale * 12}px` }}
       aria-label="JSON tree view"
     >
