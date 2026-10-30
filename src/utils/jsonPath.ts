@@ -2,7 +2,7 @@ export function toJsonPath(pathSegments: (string | number)[]): string {
   return pathSegments.reduce<string>((acc, segment, index) => {
     const segmentStr = String(segment);
 
-    if (!Number.isNaN(Number(segmentStr)) && segmentStr.trim() !== "" && Number.isInteger(Number(segmentStr))) {
+    if (typeof segment === "number") {
       // Numeric index (array)
       return acc + `[${Number(segmentStr)}]`;
     }
@@ -92,3 +92,27 @@ export function parseJsonPath(path: string): (string | number)[] | null {
   return segments;
 }
 
+
+const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+/** `data.items[0]["weird key"]` */
+export function toJsAccessor(path: (string | number)[], root = "data"): string {
+  return path.slice(1).reduce<string>((acc, seg) => {
+    if (typeof seg === "number") return `${acc}[${seg}]`;
+    return IDENT.test(seg) ? `${acc}.${seg}` : `${acc}[${JSON.stringify(seg)}]`;
+  }, root);
+}
+
+/** `data["items"][0]` */
+export function toPythonAccessor(path: (string | number)[], root = "data"): string {
+  return path.slice(1).reduce<string>((acc, seg) => `${acc}[${JSON.stringify(seg)}]`, root);
+}
+
+/** `.items[0]."weird key"` */
+export function toJqPath(path: (string | number)[]): string {
+  const out = path.slice(1).reduce<string>((acc, seg) => {
+    if (typeof seg === "number") return `${acc}[${seg}]`;
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(seg) ? `${acc}.${seg}` : `${acc}[${JSON.stringify(seg)}]`;
+  }, "");
+  return out || ".";
+}

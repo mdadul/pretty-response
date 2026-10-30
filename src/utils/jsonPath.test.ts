@@ -33,3 +33,18 @@ describe("toJsonPath and parseJsonPath", () => {
   });
 });
 
+
+import { toJqPath, toJsAccessor, toPythonAccessor } from "./jsonPath";
+
+describe("accessor formats", () => {
+  const p: (string | number)[] = ["$", "items", 0, "weird key", "0"];
+  it("formats JS, Python and jq paths", () => {
+    expect(toJsAccessor(p)).toBe('data.items[0]["weird key"]["0"]');
+    expect(toPythonAccessor(p)).toBe('data["items"][0]["weird key"]["0"]');
+    expect(toJqPath(p)).toBe('.items[0]["weird key"]["0"]');
+    expect(toJqPath(["$"])).toBe(".");
+  });
+  it("keeps numeric-looking object keys quoted in JSONPath", () => {
+    expect(toJsonPath(["$", "a", "0"])).toBe('$.a["0"]');
+  });
+});

@@ -30,7 +30,14 @@ This compiles the viewer (via Vite) into the `dist/` folder and copies `manifest
 
 ## Features
 
-- **Tree viewer**: Explore JSON structures with a collapsible tree and keyboard‑friendly search.
-- **Safe mode for large JSON**: Automatically detects huge payloads and limits deep expansion to keep the UI responsive, with an explicit toggle to turn safe mode on or off.
-- **Pinned paths & breadcrumbs**: Click nodes to focus paths, see breadcrumbs, and quickly jump to previously pinned paths.
-- **Theme & font controls**: Switch between multiple themes and adjust font size directly from the toolbar.
+- **Virtualized tree**: Renders only visible rows, so large payloads stay fast. Collapsed nodes show an inline preview, and indent guides make nesting easy to follow.
+- **Keyboard navigation**: `↑ ↓ PgUp PgDn Home End` to move, `← →` to fold, `Enter` to toggle, `Alt` + click or `Alt` + arrow for whole subtrees, `⌘/Ctrl C` to copy the selected value.
+- **Search**: `⌘/Ctrl F` searches keys and values, auto-expands to matches, and steps through them with `Enter` / `Shift Enter`.
+- **JSONPath / jq queries**: `⌘/Ctrl K` runs queries like `$..name`, `$.items[?(@.price > 10)]` or `.items[].id`. Results stay linked to their source location.
+- **Table view**: Arrays of objects open as a sortable, filterable table with CSV copy and download.
+- **Inspector**: Shows the selected node's path as JSONPath, JS, Python and jq, its size and depth, and decoded values (timestamps, ISO dates, JWTs, base64, embedded JSON, URL query params).
+- **Export**: Copy formatted or minified JSON, download it, or generate TypeScript, JSON Schema, Zod, Pydantic, Yup and Joi types.
+- **Pinned paths & breadcrumbs**: Pin paths you return to and jump back from the status bar.
+- **Light and dark mode**: Follows the system setting by default; `D` toggles it.
+
+Press `?` in the viewer for all shortcuts and query examples.

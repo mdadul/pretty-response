@@ -1,4 +1,4 @@
-export type ThemeId = "light" | "dark" | "dracula" | "solarized" | "nord";
+export type ThemeId = "light" | "dark";
 
 export interface HostPreset {
   id: string;
@@ -9,8 +9,9 @@ export interface HostPreset {
 
 export interface UserPreferences {
   theme: ThemeId;
-  viewMode: "code" | "tree";
   fontScale: number;
+  sortKeys?: boolean;
+  inspector?: boolean;
   /**
    * Optional list of JSONPath strings the user has pinned.
    * Stored globally for now rather than per-origin.
@@ -22,30 +23,35 @@ export interface UserPreferences {
   presets?: HostPreset[];
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: "dark",
-  viewMode: "code",
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light",
   fontScale: 1,
+  sortKeys: false,
+  inspector: typeof window !== "undefined" ? window.innerWidth >= 1100 : true,
   pinnedPaths: [],
   presets: []
 };
 
 export function loadPreferences(): Promise<UserPreferences> {
   return new Promise((resolve) => {
-    if (!chrome.storage) {
+    if (typeof chrome === "undefined" || !chrome.storage?.sync) {
       resolve(DEFAULT_PREFERENCES);
       return;
     }
     chrome.storage.sync.get(["preferences"], (result) => {
       const prefs = result.preferences as UserPreferences | undefined;
-      resolve({ ...DEFAULT_PREFERENCES, ...prefs });
+      const merged = { ...DEFAULT_PREFERENCES, ...prefs };
+      if (merged.theme !== "light" && merged.theme !== "dark") {
+        merged.theme = window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      resolve(merged);
     });
   });
 }
 
 export function savePreferences(prefs: UserPreferences): Promise<void> {
   return new Promise((resolve) => {
-    if (!chrome.storage) {
+    if (typeof chrome === "undefined" || !chrome.storage?.sync) {
       resolve();
       return;
     }
